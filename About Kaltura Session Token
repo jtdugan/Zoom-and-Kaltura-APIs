@@ -1,6 +1,6 @@
 These programs access Kaltura using a session token.
 To generate a session token, the program first opens a local 
-parameters files and reads in an administrative username and password,
+parameters files and reads in an administrative username,
 as well as a Kaltura Partner ID and Administrative Secret. The Parter
 ID and Administrative secret can be found under Settings > Integration
 on the Kaltura Management Console.
