@@ -12,9 +12,9 @@ import os
 #
 # GLOBAL CONSTANTS
 #
-work_dir = "C:\\Users\\JTDDM\\Downloads" 
-params_file_ref = "C:\\Users\\JTDDM\\Downloads\\TemporaryZoomParams.txt"
-outfile_ref = "C:\\Users\\JTDDM\\Downloads\\TemporaryZoomOut.txt"
+work_dir = "C:\\Users\\....\\Downloads" 
+params_file_ref = "C:\\Users\\....\\Downloads\\TemporaryZoomParams.txt"
+outfile_ref = "C:\\Users\\....\\Downloads\\TemporaryZoomOut.txt"
 conn_base = "api.zoom.us"
 #
 # CHECK FILES AND VERIFY USER-SETABLE PARAMETERS
