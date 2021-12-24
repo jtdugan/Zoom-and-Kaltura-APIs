@@ -1,0 +1,116 @@
+# Retrieve a list of Zoom users.
+# The Zoom API separates users by status (active, inactive, pending).
+# The Zoom API uses the next_page_token to return multiple pages if needed.
+# Some of the examples in Zoom API documentation work with the http.client
+#    tools. That example has been followed here, instead of using the higher-level
+#    urllib.request tools.
+# Note that some user last names and first names might contain unicode characters.
+# Name fields might also contain embedded commas.
+#
+import http.client
+import json
+import sys
+import os
+#
+# GLOBAL CONSTANTS
+#
+work_dir = "C:\\Users\\JTDDM\\Downloads" 
+params_file_ref = "C:\\Users\\JTDDM\\Downloads\\TemporaryZoomParams.txt"
+outfile_ref = "C:\\Users\\JTDDM\\Downloads\\TemporaryZoomUsers.txt"
+conn_base = "api.zoom.us"
+query_stem = "/v2/users" + "?page_size=200"
+statuses = ["active", "inactive", "pending"]
+outfile_header = ""
+outfile_header += "status,last_name,first_name,email,type,verified"
+outfile_header += ",last_login,last_client,UserID\n"
+#
+# FUNCTION DEFINITIONS
+#
+def get_web_resp(status_name, query_stem, headers, next_page_token, outfile):
+    query_text = query_stem + "&status=" + status_name
+    if next_page_token and next_page_token != "Dummy":
+        query_text += "&next_page_token=" + next_page_token
+    conn.request("GET", query_text,  headers=headers)
+    res = conn.getresponse()
+    data = res.read()
+    data = data.decode("utf-8")
+    ddict = json.loads(data)
+    resp_code = ""
+    resp_message = ""
+    resp_code = ddict.get("code")
+    resp_message = ddict.get("message")
+    if resp_code or resp_message:
+        print ("program ending because ", resp_code, resp_message)
+        sys.exit()
+    next_page_token = ddict.get("next_page_token")
+    users = ddict.get("users")
+    for user in users:
+        user_type = "Unknown"
+        user_type_code = user.get("type")
+        if user_type_code ==1:
+            user_type = "Basic"
+        elif user_type_code == 2:
+            user_type = "Licensed"
+        elif user_type_code == 3:
+            user_type = "On-Prem."
+        verified = "Unverified"
+        if user.get("verified") == 1:
+            verified = "Verified"
+        outline = ""
+        outline += user.get("status")
+        outline += "," + '"' + str(user.get("last_name")).encode("ascii","ignore").decode() + '"'
+        outline += "," + '"' + str(user.get("first_name")).encode("ascii","ignore").decode() +'"'
+        outline += "," + str(user.get("email"))
+        outline += "," + user_type
+        outline += "," + verified
+        outline += "," + str(user.get("last_login_time"))
+        outline += "," + str(user.get("last_client_version"))
+        outline += "," + str(user.get("id"))
+        outline += "\n"
+        outfile.write(outline)
+    return next_page_token
+#
+# CHECK FILES AND SET UP PARAMETERS
+#
+if not os.path.exists(work_dir):
+    print ("Program ending because working directory does not exist.")
+    sys.exit()
+if not os.path.isfile(params_file_ref):
+    print ("Program ending because input parameters files does not exist.")
+    sys.exit()
+if os.path.exists(outfile_ref):
+    os.remove(outfile_ref)
+else:
+    print ("A new output file will be created to hold the recording details.")
+conn_token = "" # JWT Token
+get_user_id = "" # User ID
+params_file = open(params_file_ref, "r")
+line_count = 0
+for params_line in params_file:
+    line_count +=1
+    if line_count == 1:
+        conn_token = params_line.strip()
+params_file.close()
+conn_bearer = "Bearer " + conn_token
+conn = http.client.HTTPSConnection(conn_base)
+headers = {
+    'authorization': conn_bearer, 
+    'content-type': "application/json"
+    }
+outfile = open(outfile_ref, "w") # Open Output file for writing
+outfile.write(outfile_header)
+#
+# LOOP THROUGH STATUSES AND MULTIPLE RESPONSE PAGES
+#
+for status_name in statuses:
+    next_page_token = "Dummy"
+    page_count = 0
+    while next_page_token:
+        page_count += 1
+        print ("Sending query for page ", page_count, status_name)
+        next_page_token = get_web_resp(status_name, query_stem, headers, next_page_token, outfile)
+#
+# END PROGRAM
+#
+outfile.close()
+sys.exit()
