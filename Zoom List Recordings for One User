@@ -1,0 +1,113 @@
+# Retrieve a list of one Zoom user's recordings by HTTP GET.
+# The page_size parameter appears to refer to the number of meetings (not recording files).
+# Documented page_size limit for this query is 300.
+# Query cannot retrieve more data than will fit within page_size_limt.
+# Presence of additional data beyond the page_size_limit is indicated by the next_page_token in the response.
+# Query will not return more than 30 days (or perhaps one calendar month) at a time.
+#
+import http.client
+import json
+import sys
+import os
+#
+# GLOBAL CONSTANTS
+#
+work_dir = "C:\\Users\\....\\Downloads" 
+params_file_ref = "C:\\Users\\....\\Downloads\\TemporaryZoomParams.txt"
+outfile_ref = "C:\\Users\\JTDDM\\....\\TemporaryZoomOut.txt"
+conn_base = "api.zoom.us"
+#
+# CHECK FILES AND VERIFY USER-SETABLE PARAMETERS
+#
+if not os.path.exists(work_dir):
+    print ("Program ending because working directory does not exist.")
+    sys.exit()
+if not os.path.isfile(params_file_ref):
+    print ("Program ending because input parameters files does not exist.")
+    sys.exit()
+if os.path.isfile(outfile_ref):
+    print ("Recording details will be appended to existing output file.")
+else:
+    print ("A new output file will be created to hold the recording details.")
+conn_token = "" # JWT Token
+get_user_id = "" # User ID
+get_from = "" # Start Date of range of recordings
+get_to = "" # End Date of Range of recordings
+params_file = open(params_file_ref, "r")
+line_count = 0
+for params_line in params_file:
+    line_count +=1
+    if line_count == 1:
+        conn_token = params_line.strip()
+    elif line_count == 2:
+        get_user_id = params_line.strip()
+    elif line_count == 3:
+        get_from = params_line.strip()
+    elif line_count == 4:
+        get_to = params_line.strip()
+params_file.close()
+#
+# GET A PAGE FROM THE WEB
+#
+conn_bearer = "Bearer " + conn_token
+get_details = "/v2/users/" + get_user_id + "/recordings?page_size=200"
+get_details = get_details + "&from=" + get_from + "&to=" + get_to
+conn = http.client.HTTPSConnection(conn_base)
+headers = {
+    'authorization': conn_bearer, 
+    'content-type': "application/json"
+    }
+conn.request("GET", get_details,  headers=headers)
+res = conn.getresponse()
+data = res.read()
+data = data.decode("utf-8")
+ddict = json.loads(data)
+#
+# PROCESS THE PAGE OF RETRIEVED DATA
+#
+outfile = open(outfile_ref, "a")
+resp_code = ""
+resp_message = ""
+resp_code = ddict.get("code")
+resp_message = ddict.get("message")
+if resp_code or resp_message:
+    print ("program ending because ", resp_code, resp_message)
+    sys.exit()
+
+print ("Query From Date: ",ddict.get("from")) 
+print ("Query To Date: ",ddict.get("to")) 
+next_page_token = ddict.get("next_page_token")
+if next_page_token:
+    print (next_page_token)
+    print ("")
+    print ("AN ADDITIONAL PAGE OF DATA SHOULD BE RETRIEVED!")
+    print ("")      
+
+meet_dict = ddict.get("meetings") # Extract the list of meetings
+meet_count = len(meet_dict)
+print ("Number of Meetings: ", meet_count)
+print ("")
+for meet in meet_dict: # Extract one meeting from list of meetings
+    meet_id = meet.get("id")
+    meet_topic = meet.get("topic").strip()
+    meet_start = meet.get("start_time").strip()
+    meet_rec_count = meet.get("recording_count")
+    files_dict = meet.get("recording_files")
+    file_count = len(files_dict)
+    for file_info in files_dict: # Extract one file from list of files
+        rec_start = file_info.get("recording_start").strip()
+        rec_end = file_info.get("recording_end").strip()
+        rec_file_type = file_info.get("file_extension").strip()
+        rec_type = file_info.get("recording_type").strip()
+        play_url = file_info.get("play_url").strip()
+        download_url = file_info.get("download_url").strip()
+        outstr = str(meet_id) + "," + meet_topic
+        outstr = outstr + "," + meet_start + "," + str(meet_rec_count)
+        outstr = outstr + "," + rec_start + "," + rec_end
+        outstr = outstr + "," + rec_file_type + "," + rec_type
+        outstr = outstr + "," + play_url
+        outstr = outstr + "," + download_url
+        outstr = outstr + "\n"
+        print (rec_start, rec_end, rec_file_type)
+        outfile.write(outstr)
+outfile.close()
