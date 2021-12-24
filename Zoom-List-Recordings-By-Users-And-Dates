@@ -14,10 +14,10 @@ from datetime import timedelta
 #
 # GLOBAL CONSTANTS
 #
-work_dir = "C:\\Users\\JTDDM\\Downloads" 
-params_file_ref = "C:\\Users\\JTDDM\\Downloads\\TemporaryZoomParams.txt"
-users_file_ref = "C:\\Users\\JTDDM\\Downloads\\TemporaryZoomUsers.txt"
-outfile_ref = "C:\\Users\\JTDDM\\Downloads\\TemporaryZoomMP4sToKaltura.txt"
+work_dir = "C:\\Users\\....\\Downloads" 
+params_file_ref = "C:\\Users\\....\\Downloads\\TemporaryZoomParams.txt"
+users_file_ref = "C:\\Users\\....\\Downloads\\TemporaryZoomUsers.txt"
+outfile_ref = "C:\\Users\\....\\Downloads\\TemporaryZoomMP4sToKaltura.txt"
 conn_base = "api.zoom.us"
 query_root = "/v2/users/"
 outfile_header = ""
