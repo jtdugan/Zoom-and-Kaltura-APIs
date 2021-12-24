@@ -14,9 +14,9 @@ import os
 #
 # GLOBAL CONSTANTS
 #
-work_dir = "C:\\Users\\JTDDM\\Downloads" 
-params_file_ref = "C:\\Users\\JTDDM\\Downloads\\TemporaryZoomParams.txt"
-outfile_ref = "C:\\Users\\JTDDM\\Downloads\\TemporaryZoomUsers.txt"
+work_dir = "C:\\Users\\....\\Downloads" 
+params_file_ref = "C:\\Users\\....\\Downloads\\TemporaryZoomParams.txt"
+outfile_ref = "C:\\Users\\....\\Downloads\\TemporaryZoomUsers.txt"
 conn_base = "api.zoom.us"
 query_stem = "/v2/users" + "?page_size=200"
 statuses = ["active", "inactive", "pending"]
