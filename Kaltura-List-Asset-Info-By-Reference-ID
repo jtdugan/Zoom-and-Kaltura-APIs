@@ -8,10 +8,10 @@ from datetime import datetime
 #
 # GLOBAL CONSTANTS
 #
-work_dir = "C:\\Users\\JTDDM\\Downloads" 
-params_file_ref = "C:\\Users\\JTDDM\\Downloads\\TemporaryZoomParams.txt"
-references_file_ref = "C:\\Users\\JTDDM\\Downloads\\ZoomRecsToKaltura.txt"
-outfile_ref = "C:\\Users\\JTDDM\\Downloads\\TemporaryKalturaInfoByRef.txt"
+work_dir = "C:\\Users\\....\\Downloads" 
+params_file_ref = "C:\\Users\\....\\Downloads\\TemporaryZoomParams.txt"
+references_file_ref = "C:\\Users\\....\\Downloads\\ZoomRecsToKaltura.txt"
+outfile_ref = "C:\\Users\\....\\Downloads\\TemporaryKalturaInfoByRef.txt"
 outfile_header = ""
 outfile_header += "KalturaReferenceID,Entries,EntryID,CreatedAt,CreatorID,OwnerID\n"
 url_session_start = "https://www.kaltura.com/api_v3/service/session/action/start"
