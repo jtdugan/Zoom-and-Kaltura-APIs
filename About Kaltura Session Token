@@ -1,5 +1,10 @@
-These programs access Kaltura using an administrative username and password. 
-The username and password are read in from a parameters file opened by the program. 
-The program begins by using the username and password to generate a session token with
-a specified expiration time. That token is then embedded in all subsequent web
-requests to validate access.
+These programs access Kaltura using a session token.
+To generate a session token, the program first opens a local 
+parameters files and reads in an administrative username and password,
+as well as a Kaltura Partner ID and Administrative Secret. The Parter
+ID and Administrative secret can be found under Settings > Integration
+on the Kaltura Management Console.
+
+With these details, the program can request a session token with a specified
+expiration. The token is then used to validate access for all subsequent 
+web access to Kaltura.
