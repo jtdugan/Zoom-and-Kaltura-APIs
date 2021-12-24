@@ -7,4 +7,4 @@ on the Kaltura Management Console.
 
 With these details, the program can request a session token with a specified
 expiration. The token is then used to validate access for all subsequent 
-web access to Kaltura.
+web requests to Kaltura.
