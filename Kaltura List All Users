@@ -1,0 +1,144 @@
+# Retrieve a list of all users from Kaltura
+#
+import sys
+import os
+import requests
+from datetime import datetime
+import datetime
+#
+# CONSTANTS
+#
+work_dir = "C:\\Users\\....\\Downloads" 
+params_file_ref = "C:\\Users\\....\\Downloads\\TemporaryZoomParams.txt"
+outfile_ref = "C:\\Users\\....\\Downloads\\TemporaryKalturaUsers.txt"
+outfile_header = "Id,Email,FullName,CreatedAt,RecordType,LoginEnabled,Status,UserType,UserMode\n"
+url_session_start = "https://www.kaltura.com/api_v3/service/session/action/start"
+url_users_ref = " https://www.kaltura.com/api_v3/service/user/action/list"
+json_format = {"format": "1"}
+entries_per_page = 50
+#
+# CHECK FILES AND SET UP PARAMETERS
+#
+if not os.path.exists(work_dir):
+    print ("Program ending because working directory does not exist.")
+    sys.exit()
+if not os.path.isfile(params_file_ref):
+    print ("Program ending because input parameters files does not exist.")
+    sys.exit()
+if os.path.exists(outfile_ref):
+    os.remove(outfile_ref)
+else:
+    print ("A new output file will be created to hold the recording details.")
+    
+params_file = open(params_file_ref, "r")
+line_count = 0
+for params_line in params_file:
+    line_count +=1
+    if line_count == 5:
+        params_partner = params_line.strip()
+    elif line_count == 6:
+        params_secret = params_line.strip()
+    elif line_count == 7:
+        params_user = params_line.strip()
+params_file.close()
+params_expiry = 14400
+session_data = {"secret": params_secret}
+session_data["expiry"] = params_expiry
+session_data["partnerId"] = params_partner
+session_data["type"] = 2
+session_data["userId"] = params_user
+#
+# Obtain Token for subsequent queries
+#
+response = requests.post(url_session_start, data=session_data, params=json_format)
+if (response.status_code) != 200:
+    print (" Program ending due to non-200 web response.", response)
+    sys.exit()
+resp_dict = response.json()
+if "code" in resp_dict:
+    print ("Program ending because ",resp_dict["code"])
+    sys.exit()
+session_token = resp_dict
+print ("Session token obtained.")
+#
+# Prep Output File
+#
+outfile = open(outfile_ref, "w") # Open Output file for writing
+outfile.write(outfile_header)
+#
+# LOOP Through Reference IDs and get info about each from Kaltura
+#
+post_data = {"ks": session_token}
+response = requests.post(url_users_ref, data=post_data, params=json_format)
+if (response.status_code) != 200:
+    print (" Program ending due to non-200 web response.", response)
+    sys.exit()
+resp_dict = response.json()
+if "code" in resp_dict:
+    print ("Program ending because ",resp_dict["code"])
+    sys.exit()
+if "totalCount" in resp_dict:
+    entry_count = int(resp_dict["totalCount"])
+else:
+    entry_count = -1
+if entry_count < 1:
+    print("Program ending because no positive count of users.", entry_count)
+    sys.exit()
+print ("Count of entries returned:", entry_count)
+predicted_pages = entry_count // entries_per_page
+if entry_count % entries_per_page != 0:
+    predicted_pages = predicted_pages + 1
+print ("Calls needed to retrive entire list:", predicted_pages)
+for i in range (1,predicted_pages + 1):
+    post_data["pager[pageIndex]"] = (str(i))
+    post_data["pager[pageSize]"] = str(entries_per_page)
+    post_data["pager[objectType]"] = "KalturaPager"
+    response = requests.post(url_users_ref, data=post_data, params=json_format)
+    if (response.status_code) != 200:
+        print (" Program ending due to non-200 web response.", response)
+        sys.exit()
+    resp_dict = response.json()
+    if "code" in resp_dict:
+        print ("Program ending because ",resp_dict["code"])
+        sys.exit()
+    users_in_resp = len(resp_dict["objects"])
+    print ("Users in response to call for page", i, ":",users_in_resp)
+    for one_user in resp_dict["objects"]:
+        fl = one_user["id"] + ","
+        if "email" in one_user:
+            fl += one_user["email"] + ","
+        else:
+            fl += ","
+        if "fullName" in one_user:
+            fl += one_user["fullName"] + ","
+        else:
+            fl += ","
+        fl += datetime.datetime.fromtimestamp(one_user["createdAt"]).strftime("%Y-%m-%d %H:%M:%S") + ","
+        fl += one_user["objectType"] + ","
+        fl += str(int(one_user["loginEnabled"])) + ","
+        if one_user["status"] == 0:
+            fl += "Blocked,"
+        elif one_user["status"] == 1:
+            fl += "Active,"
+        elif one_user["status"] == 2:
+            fl += "Deleted,"
+        else:
+            fl += "Unknown,"
+        if one_user["type"] == 0:
+            fl += "User,"
+        elif one_user["type"] == 1:
+            fl += "Group,"
+        else:
+            fl += "Unknown,"
+        if one_user["userMode"] == 0:
+            fl += "None"
+        elif one_user["userMode"] == 1:
+            fl += "Protected_User"
+        else:
+            fl += "Unknown"
+        outfile.write(fl+"\n")
+#
+# END PROGRAM
+#
+outfile.close()
+sys.exit()
