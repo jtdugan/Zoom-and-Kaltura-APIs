@@ -14,10 +14,10 @@ from datetime import timedelta
 #
 # GLOBAL CONSTANTS
 #
-work_dir = "C:\\Users\\JTDDM\\Downloads" 
-params_file_ref = "C:\\Users\\JTDDM\\Downloads\\TemporaryZoomParams.txt"
-users_file_ref = "C:\\Users\\JTDDM\\Downloads\\TemporaryZoomUsers.txt"
-outfile_ref = "C:\\Users\\JTDDM\\Downloads\\TemporaryZoomMP4sToKaltura.txt"
+work_dir = "C:\\Users\\....\\Downloads" 
+params_file_ref = "C:\\Users\\....\\Downloads\\TemporaryZoomParams.txt"
+users_file_ref = "C:\\Users\\....\\Downloads\\TemporaryZoomUsers.txt"
+outfile_ref = "C:\\Users\\....\\Downloads\\TemporaryZoomMP4sToKaltura.txt"
 conn_base = "api.zoom.us"
 query_root = "/v2/users/"
 outfile_header = ""
@@ -70,11 +70,12 @@ def get_web_resp(user_email, query_root, start_date, end_date, headers, next_pag
         meet_id = str(meeting.get("id"))
         preface = user_email + "," + meet_id + "," + meet_uuid + ","
         rec_files = meeting.get("recording_files")
-        for rec_file in rec_files:
-            rec_file_type = rec_file.get("file_type").strip()
-            rec_data = extract_rec_details(rec_file)
-            if rec_data:
-                outfile.write(preface + rec_data + "\n")
+        if rec_files:
+            for rec_file in rec_files:
+                rec_file_type = rec_file.get("file_type").strip()
+                rec_data = extract_rec_details(rec_file)
+                if rec_data:
+                    outfile.write(preface + rec_data + "\n")
     return next_page_token
 #
 # CHECK FILES AND SET UP PARAMETERS
