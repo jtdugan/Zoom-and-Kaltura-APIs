@@ -1,0 +1,197 @@
+# Retrieve a list of entries from Kaltura
+#
+import sys
+import os
+import requests
+from datetime import datetime
+from datetime import timezone
+import datetime
+#
+# Function to do one HTTP POST and check basic response
+#
+def do_post(post_url, post_data, post_parameters):
+    response = requests.post(post_url, data=post_data, params=json_format)
+    if (response.status_code) != 200:
+        print (" Program ending due to non-200 web response.", response)
+        sys.exit()
+    resp_dict = response.json()
+    if "code" in resp_dict:
+        print ("Program ending because ",resp_dict["code"])
+        sys.exit()
+    return resp_dict
+#
+# Function to remove undesired chars from a string
+#
+def clean_string(string_to_clean):
+    encoded_string = string_to_clean.encode("ascii","ignore")
+    decoded_string = encoded_string.decode()
+    decoded_string = decoded_string.replace("\n","") # remove new lines
+    decoded_string = decoded_string.replace("\r","") # remove carriage returns
+    decoded_string = decoded_string.replace("\t","") # remove tabs
+    decoded_string = decoded_string.replace('"',"") # remove embedded double-quote marks
+    if len(decoded_string) > 500:
+        decoded_string = decoded_string[:500]
+    return '"' + decoded_string + '"'
+#
+# Function to extract selected categories from list of categories
+#
+def extract_categories(list_of_categories):
+    return_string = ""
+    if "Canvas>site>channels>Shared Repository" in list_of_categories:
+        return_string += "SharedRep,"
+    else:
+        return_string += "," 
+    if "Canvas>site>nestedFilters>Monroe Library" in list_of_categories:
+        return_string += "MonLib"
+    return(return_string)
+#
+# Function to format one line of details from an API response
+#
+def format_details(an_entry):
+    det_line = ""
+    det_line += str(an_entry["createdAt"]) + ","
+    det_line += datetime.datetime.fromtimestamp(an_entry["createdAt"]).strftime("%Y-%m-%d %H:%M:%S") + ","
+    det_line += an_entry["objectType"] + ","
+    det_line += an_entry["id"] + ","
+    det_line += clean_string(an_entry["name"]) + ","
+    if "description" in an_entry:
+        det_line += clean_string(an_entry["description"]) + ","
+    else:
+        det_line += ","
+    if "categories" in an_entry:
+        det_line += extract_categories(an_entry["categories"]) + ","
+    else:
+        det_line += ",,"
+    det_line += an_entry["creatorId"] + ","
+    det_line += an_entry["userId"] + ","
+    if "referenceId" in an_entry:
+        det_line += an_entry["referenceId"] + ","
+    else:
+        det_line += ","
+    det_line += str(an_entry["status"]) + ","
+    if "downloadUrl" in an_entry:
+        det_line += an_entry["downloadUrl"]
+    return det_line
+#
+# CONSTANTS
+#
+work_dir = "C:\\Users\\.....\\Downloads" 
+params_file_ref = "C:\\Users\\.....\\Downloads\\TemporaryZoomParams.txt"
+outfile_ref = "C:\\Users\\.....\\Downloads\\TemporaryKalturaEntries.txt"
+outfile_header = "CreatedAtInt,CreatedAt,ObjectType,Id,EntryName,Description,Category1,Category2,Creator,Owner"
+outfile_header += ",ReferenceID,Status,DownloadURL\n"
+url_session_start = "https://www.kaltura.com/api_v3/service/session/action/start"
+url_entries_list = "https://www.kaltura.com/api_v3/service/baseentry/action/list"
+json_format = {"format": "1"}
+entries_per_page = 50
+#
+# CHECK FILES AND SET UP PARAMETERS
+#
+if not os.path.exists(work_dir):
+    print ("Program ending because working directory does not exist.")
+    sys.exit()
+if not os.path.isfile(params_file_ref):
+    print ("Program ending because input parameters files does not exist.")
+    sys.exit()
+if os.path.exists(outfile_ref):
+    os.remove(outfile_ref)
+    
+params_file = open(params_file_ref, "r")
+line_count = 0
+for params_line in params_file:
+    line_count +=1
+    if line_count == 5:
+        params_partner = params_line.strip()
+    elif line_count == 6:
+        params_secret = params_line.strip()
+    elif line_count == 7:
+        params_user = params_line.strip()
+params_file.close()
+params_expiry = 14400
+session_data = {"secret": params_secret}
+session_data["expiry"] = params_expiry
+session_data["partnerId"] = params_partner
+session_data["type"] = 2
+session_data["userId"] = params_user
+#
+# Obtain Token for subsequent queries
+#
+session_token = do_post(url_session_start, session_data, json_format)
+print ("Session token obtained.")
+#
+# Get earliest CreatedAt from Kaltura Entries
+#
+query_data = {"ks": session_token} 
+query_data["filter[orderBy]"] = "+createdAt" # Ascending Order by Created At
+query_data["pager[pagesize"] = entries_per_page
+query_resp = do_post(url_entries_list, query_data, json_format)
+earliest_created = -1
+if "objects" in query_resp:
+    earliest_created = query_resp["objects"][0]["createdAt"]
+#
+# Get latest CreatedAt from Kaltura Entries and count of total entries retrievable
+#
+query_data = {"ks": session_token} 
+query_data["filter[orderBy]"] = "-createdAt" # Descending Order by Created At
+query_data["pager[pagesize"] = entries_per_page
+query_resp = do_post(url_entries_list, query_data, json_format)
+latest_created = -1
+if "objects" in query_resp:
+    latest_created = query_resp["objects"][0]["createdAt"]
+expected_entries = -1
+if "totalCount" in query_resp:
+    expected_entries = query_resp["totalCount"] # Total Number of retrievable entries
+# Display Summary
+print ("Expected Entries:", "{:#10,}".format(expected_entries))
+print ("Earliest Entries Found:",datetime.datetime.fromtimestamp(earliest_created))
+print ("Latest Entry Found:",datetime.datetime.fromtimestamp(latest_created))
+earliest_created -= (86400 * 2) # expand date range by two days to make sure everything is covered.
+latest_created += (86400 * 2) # expand date range by two days to make sure everything is covered.
+#
+# Prep Output File
+#
+outfile = open(outfile_ref, "w") # Open Output file for writing
+outfile.write(outfile_header)
+#
+# Loop through dates and get list of entries by CreatedAt Range
+#
+query_start = earliest_created
+write_count = 0
+query_data = {"ks": session_token}
+query_data["filter[orderBy]"] = "+createdAt" # Ascending Order by Created At
+while query_start < latest_created:
+    query_start += 86400 # Advance start of range by one full day (in seconds)
+    query_end = query_start + 86399 # Range ends one-day-minus-one-second after range start
+    query_data["filter[createdAtGreaterThanOrEqual]"] = query_start
+    query_data["filter[createdAtLessThanOrEqual]"] = query_end
+    query_data["pager[pageSize]"] = entries_per_page
+    # Query once to get a count of entries within date range
+    query_resp = do_post(url_entries_list, query_data, json_format)
+    entry_count = 0
+    if "totalCount" in query_resp:
+        entry_count = int(query_resp["totalCount"])
+    if entry_count > 0:
+        # Retrieve entries
+        predicted_pages = entry_count // entries_per_page
+        if entry_count % entries_per_page != 0:
+            predicted_pages = predicted_pages + 1
+        for i in range (1,predicted_pages + 1):
+            query_data["pager[pageIndex]"] = (str(i))
+            query_data["pager[objectType]"] = "KalturaPager"
+            # Query to get a page of entries
+            query_resp = do_post(url_entries_list, query_data, json_format)
+            for one_entry in query_resp["objects"]:
+                fl = format_details(one_entry)
+                outfile.write(fl+"\n")
+                write_count += 1
+        print ("Count in Query:", "{:#6,}".format(entry_count), "Cum Lines Written:", "{:#10,}".format(write_count))
+#
+# END PROGRAM
+#
+print ("Process completed.")
+print ("Date Range Begin:",datetime.datetime.fromtimestamp(earliest_created))
+print ("Date Range End:",datetime.datetime.fromtimestamp(latest_created))
+print ("Entries expected at beginning:", "{:#10,}".format(expected_entries))
+print ("Total detail lines written:", "{:#10,}".format(write_count))
+outfile.close()
+sys.exit()
