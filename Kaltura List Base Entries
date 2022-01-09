@@ -123,7 +123,7 @@ print ("Session token obtained.")
 #
 query_data = {"ks": session_token} 
 query_data["filter[orderBy]"] = "+createdAt" # Ascending Order by Created At
-query_data["pager[pagesize"] = entries_per_page
+query_data["pager[pageSize"] = entries_per_page
 query_resp = do_post(url_entries_list, query_data, json_format)
 earliest_created = -1
 if "objects" in query_resp:
@@ -133,7 +133,7 @@ if "objects" in query_resp:
 #
 query_data = {"ks": session_token} 
 query_data["filter[orderBy]"] = "-createdAt" # Descending Order by Created At
-query_data["pager[pagesize"] = entries_per_page
+query_data["pager[pageSize"] = entries_per_page
 query_resp = do_post(url_entries_list, query_data, json_format)
 latest_created = -1
 if "objects" in query_resp:
