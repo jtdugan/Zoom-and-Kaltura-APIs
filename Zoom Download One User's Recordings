@@ -1,0 +1,125 @@
+# Call a Zoom API to retrieve a list of Zoom recording files for one user
+# within a date range, then download those files.
+# A parameters file provides a web token and
+# identifies the user, start date, and stop date.
+# Note that the "list recordings" Zoom API limits the query date range to one month.
+#
+import sys
+import os
+import requests
+from datetime import datetime
+from datetime import timezone
+import datetime
+#
+# CONSTANTS
+#
+api_url_prefix = "https://api.zoom.us/v2/users/"
+api_url_suffix = "/recordings"
+work_dir = "C:\\Users\\.....\\Downloads\TempZoom" 
+params_file_ref = "C:\\Users\\.....\\Downloads\\TemporaryZoomParams.txt"
+one_megabyte = 1024 * 1024
+file_type_dict = {}
+file_type_dict["MP4"] = "MP4"
+file_type_dict["M4A"] = "M4A"
+file_type_dict["TIMELINE"] = "JSN"
+file_type_dict["TRANSCRIPT"] = "VTT"
+file_type_dict["CHAT"] = "TXT"
+file_type_dict["CC"] = "VTT"
+file_type_dict["CSV"] = "CSV"        
+#
+# CHECK FILES AND SET UP PARAMETERS
+#
+if not os.path.exists(work_dir):
+    print ("Program ending because working directory does not exist.")
+    sys.exit()
+if not os.path.isfile(params_file_ref):
+    print ("Program ending because input parameters files does not exist.")
+    sys.exit()
+params_file = open(params_file_ref, "r")
+line_count = 0
+params_jwt = ""
+for params_line in params_file:
+    line_count +=1
+    if line_count == 1:
+        params_jwt = params_line.strip()
+    if line_count == 2:
+        params_user = params_line.strip()
+    if line_count == 3:
+        params_from = params_line.strip()
+    if line_count == 4:
+        params_to = params_line.strip()
+params_file.close()
+token_bearer = "Bearer " + params_jwt
+query_url = api_url_prefix + params_user + api_url_suffix
+query_header = {}
+query_header["authorization"] = token_bearer
+query_header["content_type"] = "application/json"
+query_params = {}
+query_params["page_size"] = 25
+query_params["from"] = params_from
+query_params["to"] = params_to
+next_page_token = "dummy"
+list_of_files = []
+print (datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S"))
+print ("Listing files meeting specified parameters.")
+while next_page_token:
+    if next_page_token and next_page_token != "dummy":
+        query_params["next_page_token"] = next_page_token
+    response = requests.get(query_url, headers=query_header, params=query_params)
+    if (response.status_code) != 200:
+        print (" Program ending due to non-200 web response.", response)
+        sys.exit()
+    resp_dict = response.json()
+    if "code" in resp_dict:
+        print ("Program ending because ",resp_dict["code"])
+        sys.exit()
+    if "next_page_token" in resp_dict:
+        next_page_token = resp_dict["next_page_token"]
+    else:
+        next_page_token = ""
+    meetings = resp_dict["meetings"]
+    for meeting in meetings:
+        rec_files = meeting["recording_files"]
+        if rec_files:
+            for rec_file in rec_files:
+                dl = rec_file["recording_start"]
+                dl += "," + rec_file["id"]
+                if rec_file["file_type"] in file_type_dict:
+                    file_extension = file_type_dict[rec_file["file_type"]]
+                else:
+                    file_extension = "UNK"
+                dl += "," + file_extension
+                dl += "," + rec_file["download_url"]
+                if "file_size" in rec_file:
+                    dl += "," + str(rec_file["file_size"])
+                else:
+                    dl += ",0"
+                list_of_files.append(dl)
+
+print ("Number of files to be downloaded:", len(list_of_files))
+header_data = {'authorization': token_bearer}
+for one_file in list_of_files:
+    file_details = one_file.split(",")
+    file_start = file_details[0]
+    file_start_date = file_start.split("T")[0].strip()
+    file_start_time = file_start.split("T")[1].strip()
+    file_start_date = file_start_date.replace("-","")
+    file_start_time = file_start_time.replace(":","")
+    file_start_time = file_start_time.replace("Z","")
+    dt_string = ("GMT") + file_start_date + "-" + file_start_time
+    file_id = file_details[1]
+    file_ext = file_details[2]
+    file_url = file_details[3]
+    file_size = file_details[4]
+    fn_string = dt_string + "_" + file_id + "." + file_ext
+    outfile_ref = work_dir + "\\" + fn_string 
+    print (fn_string, "{:,}".format(int(file_size)))
+    response = requests.get(file_url, headers=header_data, stream=True)
+    if (response.status_code) != 200:
+        print (" Program ending due to non-200 web response.", response)
+        sys.exit()
+    with open(outfile_ref,"wb") as output_file:
+        for chunk in response.iter_content(chunk_size=one_megabyte):
+             if chunk:
+                 output_file.write(chunk)
+print (datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S"))
