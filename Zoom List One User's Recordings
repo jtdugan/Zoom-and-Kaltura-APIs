@@ -1,0 +1,96 @@
+# Retrieve a list of one user's Zoom recordings by means of
+# the Python requests library and Zoom API.
+# A parameters file supplies a required JSON Web Token, user ID,
+# start date and end date. The Zoom API limits the data range to one month. 
+# If the query returns more detail lines than can fit in a single response page,
+# the response page will include a non-null Next_Page_Token.
+#
+import requests
+import json
+import sys
+import os
+#
+# CONSTANTS
+#
+work_dir = "C:\\Users\\....\\Downloads" 
+params_file_ref = "C:\\Users\\.....\\Downloads\\TemporaryZoomParams.txt"
+outfile_ref = "C:\\Users\\.....\\Downloads\\TemporaryZoomOut.txt"
+query_stem = "https://api.zoom.us/v2/users/"
+#
+# CHECK FILES AND VERIFY USER-SETABLE PARAMETERS
+#
+if not os.path.exists(work_dir):
+    print ("Program ending because working directory does not exist.")
+    sys.exit()
+if not os.path.isfile(params_file_ref):
+    print ("Program ending because input parameters files does not exist.")
+    sys.exit()
+if os.path.isfile(outfile_ref):
+    print ("Recording details will be appended to existing output file.")
+else:
+    print ("A new output file will be created to hold the recording details.")
+params_jwt = ""
+params_user_id = ""
+params_from = ""
+params_to = ""
+params_file = open(params_file_ref, "r")
+line_count = 0
+for params_line in params_file:
+    line_count +=1
+    if line_count == 1:
+        params_jwt = params_line.strip()
+    elif line_count == 2:
+        params_user_id = params_line.strip()
+    elif line_count == 3:
+        params_from = params_line.strip()
+    elif line_count == 4:
+        params_to = params_line.strip()
+params_file.close()
+outfile = open(outfile_ref, "a")
+#
+# Get pages from the Web
+#
+token_bearer = "Bearer " + params_jwt
+query_headers = {}
+query_headers["authorization"] = token_bearer
+query_headers["content_type"] = "application/json"
+query_url = query_stem + params_user_id + "/recordings"
+query_params = {}
+query_params["page_size"] = "50"
+query_params["from"] = params_from
+query_params["to"] = params_to
+
+next_page_token = "Dummy"
+while next_page_token:
+    if next_page_token and next_page_token != "Dummy":
+        query_params["next_page_token"] = next_page_token                  
+    response = requests.get(query_url, headers=query_headers, params=query_params)
+    if (response.status_code) != 200:
+        print (" Program ending due to non-200 web response.", response)
+        sys.exit()
+    resp_dict = response.json()
+    if "code" in resp_dict:
+        print ("Program ending because ",resp_dict["code"])
+        sys.exit()
+    if "next_page_token" in resp_dict:
+        next_page_token = resp_dict["next_page_token"]
+    else:
+        next_page_token = ""
+    meetings = resp_dict["meetings"]
+    for meeting in meetings:
+        rec_files = meeting["recording_files"]
+        if rec_files:
+            for rec_file in rec_files:
+                fl = str(meeting["id"])
+                fl += "," + meeting["topic"]
+                fl += "," + meeting["start_time"]
+                fl += "," + str(meeting["recording_count"])
+                fl += "," + rec_file["recording_start"]
+                fl += "," + rec_file["recording_end"]
+                fl += "," + rec_file["file_extension"]
+                fl += "," + rec_file["recording_type"]
+                fl += "," + rec_file["play_url"]
+                fl += "," + rec_file["download_url"]
+                fl += "\n"
+                outfile.write(fl)
+outfile.close()
