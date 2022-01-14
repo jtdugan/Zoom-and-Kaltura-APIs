@@ -1,0 +1,153 @@
+# Retrieve list of Zoom MP4 files within a range of dates,
+# by means of Python Requests library and Zoom API.
+# The Zoom API returns a list of recordings for a single user, and limits
+# the range of dates in a query to a single month.
+# A parameters file supplies the program with a JSON Web Token and range of dates.
+# A separate file provides a list of users
+#
+import requests
+import json
+import sys
+import os
+import datetime
+from datetime import timedelta
+#
+# GLOBAL CONSTANTS
+#
+work_dir = "C:\\Users\\.....\\Downloads" 
+params_file_ref = "C:\\Users\\.....\\Downloads\\TemporaryZoomParams.txt"
+users_file_ref = "C:\\Users\\.....\\Downloads\\TemporaryZoomUsers.txt"
+outfile_ref = "C:\\Users\\.....\\Downloads\\TemporaryZoomMP4sToKaltura.txt"
+query_stem  = "https://api.zoom.us/v2/users/"
+outfile_header = ""
+outfile_header += "user_email,meeting_number,meeting_uuid"
+outfile_header += ",rec_start,rec_end,ftype,rec_type,rec_status,file_size"
+outfile_header += ",recording_id,download_url\n"
+#
+# FUNCTION DEFINITIONS
+#
+def extract_rec_details(rec_details):
+    file_type = rec_details.get("file_type").strip()
+    if file_type != "MP4": # Only MP4 files are of interest
+        return ""
+    data_line = rec_details.get("recording_start")
+    data_line += "," + rec_details.get("recording_end")
+    data_line += "," + file_type
+    data_line += "," + rec_details.get("recording_type")
+    data_line += "," + rec_details.get("status")
+    data_line += "," + str(rec_details.get("file_size"))
+    data_line += "," + rec_details.get("id")
+    data_line += "," + rec_details.get("download_url")
+    return data_line   
+#
+# CHECK FILES AND SET UP PARAMETERS
+#
+if not os.path.exists(work_dir):
+    print ("Program ending because working directory does not exist.")
+    sys.exit()
+if not os.path.isfile(params_file_ref):
+    print ("Program ending because input parameters files does not exist.")
+    sys.exit()
+if not os.path.isfile(users_file_ref):
+    print ("Program ending because input users files does not exist.")
+    sys.exit()
+if os.path.exists(outfile_ref):
+    os.remove(outfile_ref)
+else:
+    print ("A new output file will be created to hold the recording details.")
+params_file = open(params_file_ref, "r")
+line_count = 0
+params_jwt = ""
+params_start_date = ""
+params_end_date = ""
+for params_line in params_file:
+    line_count +=1
+    if line_count == 1:
+        params_jwt = params_line.strip()
+    if line_count == 3:
+        params_start_date = params_line.strip()
+    if line_count == 4:
+        params_end_date = params_line.strip()
+params_file.close()
+token_bearer = "Bearer " + params_jwt
+query_headers = {}
+query_headers["authorization"] = token_bearer
+query_headers["content-type"] = "application/json"
+
+if len(params_start_date) != 10 or len(params_end_date) != 10:
+    print ("Program endinging because of missing or improper date parameters.")
+    sys.exit()
+range_start = datetime.datetime.strptime(params_start_date, "%Y-%m-%d")
+range_end = datetime.datetime.strptime(params_end_date,"%Y-%m-%d")
+if range_end <= range_start:
+    print("Program ending because of invalid date range.")
+diffdays = range_end - range_start
+start_dates = []
+end_dates = []
+start_dates.append(datetime.datetime.strftime(range_start, "%Y-%m-%d"))
+test_date = range_start
+for i in range (1, diffdays.days):
+    test_date += timedelta(days=1)
+    if test_date.day == 1:
+        back_one = test_date - timedelta(days=1)
+        start_dates.append(datetime.datetime.strftime(test_date, "%Y-%m-%d"))
+        end_dates.append(datetime.datetime.strftime(back_one,"%Y-%m-%d"))
+date_count = len(start_dates)
+end_dates.append(datetime.datetime.strftime(range_end,"%Y-%m-%d"))
+print ("Query date ranges:")
+for i in range (0, date_count):
+    print ("    ", start_dates[i], end_dates[i])  
+usersfile = open(users_file_ref,"r")
+outfile = open(outfile_ref, "w") # Open Output file for writing
+outfile.write(outfile_header)
+#
+# LOOP THROUGH USERS AND MULTIPLE RESPONSE PAGES
+#
+users = usersfile.readlines()
+ucount = 0
+for user in users:
+    ucount += 1
+    user = user.split(",")
+    user_status = user[0].strip()
+    user_email = user[3].strip()
+    query_url = query_stem + user_email + "/recordings"
+    print (ucount, user_email, user_status)
+    if user_status == "active":
+        for i in range(0,date_count):
+            next_page_token = "Dummy"
+            while next_page_token:
+                query_params = {}
+                query_params["page_size"] = 50
+                query_params["from"] = start_dates[i]
+                query_params["to"] = end_dates[i]
+                if next_page_token and next_page_token != "Dummy":
+                    query_params["next_page_token"] = next_page_token                  
+                response = requests.get(query_url, headers=query_headers, params=query_params)
+                if (response.status_code) != 200:
+                    print (" Program ending due to non-200 web response.", response)
+                    sys.exit()
+                resp_dict = response.json()
+                if "code" in resp_dict:
+                    print ("Program ending because ",resp_dict["code"])
+                    sys.exit()
+                if "next_page_token" in resp_dict:
+                    next_page_token = resp_dict["next_page_token"]
+                else:
+                    next_page_token = ""
+                meetings = resp_dict["meetings"]
+                for meeting in meetings:
+                    meet_uuid = meeting["uuid"]
+                    meet_id = str(meeting["id"])
+                    preface = user_email + "," + meet_id + "," + meet_uuid + ","
+                    rec_files = meeting["recording_files"]
+                    if rec_files:
+                        for rec_file in rec_files:
+                            rec_data = extract_rec_details(rec_file)
+                            if rec_data:
+                                outfile.write(preface + rec_data + "\n")
+#
+# END PROGRAM
+#
+outfile.close()
+usersfile.close()
+sys.exit()
