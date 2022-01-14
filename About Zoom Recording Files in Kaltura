@@ -1,15 +1,39 @@
-When a Zoom recording is forwarded to Kaltura it is marked in Kaltura with a Reference ID that identifies the Zoom recording that was its source. The Reference ID is somewhat indirect, and understanding it requires some explanation.
+When a Zoom recording is forwarded to Kaltura it is marked in Kaltura with a Reference ID that identifies the Zoom recording that was its source. 
+The Reference ID is somewhat indirect, and understanding it requires some explanation.
+In Zoom, users work within “meetings.” Each meeting has a unique Meeting ID (also called a Meeting Number). and also has a topic, 
+such as “My Office Hour” or “English 101”. 
 
-In Zoom, users work within “meetings.” Each meeting has a unique Meeting ID (also called a Meeting Number, and also has a topic, such as “My Office Hour” or “English 101”. A meeting topic is not necessarily unique across all users in an instance of Zoom, but a Meeting ID/Number is unique.
+Each Meeting ID can have one or more occurrences, with each occurrence being an instance of the meeting 
+starting at one particular date and time. For example, my “English 101” meeting might have occurrences at 
+1PM on the 21st, 23rd, and 25th of October. Once a particular occurrence begins, it receives a “Meeting UUID,” 
+with UUID standing for Universally Unique IDentifier.
 
-Each Meeting ID can have one or more occurrences, with each occurrence being an instance of the meeting starting at one particular date and time. For example, my “English 101” meeting might have occurrences at 1PM on the 21st, 23rd, and 25th of October. Once a particular occurrence begins, it receives a “Meeting UUID” with UUID standing for Universally Unique IDentifier.
+A meeting occurrence might or might not be recorded. If it is, the recording will be identified by the Meeting UUID
+and the date and time at which the recording (not the occurrence) began. Most meetings result in either zero or one 
+video recordings (MP4 files). Exceptions to this are described below. A recorded meeting might generate files of other types as well, 
+such as the text of the meeting chat or an audio-only recording. Only video files are forwarded automatically to Kaltura,
+so the discussion below addresses only those, ignoring chat, audio, or any other file types.
 
-A meeting occurrence might or might not be recorded. If it is, the recording will be identified by the Meeting UUID and the date and time at which the recording (not the occurrence) began. Most meetings result in either zero or one video recording (MP4 file). Exceptions to this are described below. A recorded meeting might generate files of other types as well, such as the text of the meeting chat or an audio-only recording. Only video files are forwarded automatically to Kaltura, so the discussion below addresses only those, ignoring chat, audio, or any other file types.
+A Meeting occurrence sometimes has more than one video recording associated with it. One of the ways this happens 
+is that the meeting host might stop and start a recording one or more times within a meeting occurrence. 
+Clicking on Stop and Start (but not Pause and Resume) within a meeting occurrence segments the recording file or files. 
+Each recording segment has its own start time. Another way a meeting occurrence can have multiple recording files 
+is for the Zoom user to specify separate recording “views” in their Zoom settings. A user can specify, for example, 
+that Zoom make separate recordings of a Speaker View, a Shared Screen View, and a Gallery View. All of the views within 
+a recorded occurrence have the same start and stop times, unless there are multiple segments (the meeting host
+stopped and started the recording). The user cannot stop and start each view separately, so clicking Stop closes
+the recording files and marks them all with the same stop time, then clicking Start reopens a new recording file for
+each view, with all of them having the same start time. 
 
-A Meeting occurrence sometimes has more than one video recording associated with it. One of the ways this happens is that the meeting host might stop and start a recording one or more times within a meeting occurrence. Clicking on Stop and Start (but not Pause and Resume) within a meeting occurrence segments the recording file or files. Each recording segment has its own start time. 
+A critical point in understanding the relationship between Zoom and Kaltura is that one and only one video file 
+is forwarded from Zoom to Kaltura for each segment of a meeting occurence. If a segment contains multiple views, 
+the interface program selects one recording out of several to represent the entire segment. The interface program 
+seems to use a preference hierarchy, giving priority to the file that has both the shared screen and speaker, 
+if there is one, otherwise giving priority to the file that follows the speaker. 
 
-Another way a meeting occurrence can have multiple recording files is for the Zoom user to specify separate recording “views” in their Zoom settings. A user can specify, for example, that Zoom make separate recordings of a Speaker View, a Shared Screen View, and a Gallery View. All of the views within a recorded occurrence have the same start and stop times, unless there are multiple segments (the meeting host stopped and started the recording). The user cannot stop and start each view separately, so clicking Stop closes the recording files and marks them all with the same stop time, then clicking Start reopens a new recording file for each view, with all of them having the same start time. 
-
-A critical point in understanding the relationship between Zoom and Kaltura is that one and only one video file is forwarded from Zoom to Kaltura for each recording segment. If a segment contains multiple views, the interface program selects one recording out of several to represent the entire segment. The interface program seems to use a preference hierarchy, giving priority to the file that has both the shared screen and speaker, if there is one, otherwise giving priority to the file that follows the speaker.
-
-In Kaltura, then, each imported Zoom recording receives a Reference ID that identifies the Zoom Meeting UUID in which the recording was made, and identifies the start time of the recording. In other words, the Reference ID on Kaltura identifies a segment on Zoom. The Reference ID points to at least one recording file stored on Zoom (unless that file is subsequently deleted from Zoom).  It can point to more than one file on Zoom if there are multiple views within a segment, but only one of those several views is the file in Kaltura that is marked with the relevant Reference ID.
+In Kaltura, then, each imported Zoom recording receives a Reference ID that identifies the Zoom Meeting UUID 
+in which the recording was made, and identifies the start time of the recording. In other words, the Reference ID 
+on Kaltura identifies a segment on Zoom. The Reference ID in Kaltura points to at least one recording file stored on Zoom 
+(unless that file is subsequently deleted from Zoom).  It can point to more than one file on Zoom if there are 
+multiple views within a segment, but only one of those several views is the file in Kaltura that is marked with 
+the relevant Reference ID.
