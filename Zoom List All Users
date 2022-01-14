@@ -1,0 +1,128 @@
+# Retrieve a list of Zoom users by means of Python requests and Zoom API.
+# The Zoom Users API separates users by status (active, inactive, pending).
+# The Zoom API uses the next_page_token to page through multiple response
+# pages if needed.
+# Some user name fields might contain unicode characters and/or embedded commas.
+# The program reads a JSON Web Token from a parameters file.
+# The JWT must be created on marketplace.zoom.us and stored in the parameters file.
+# 
+#
+import requests
+import json
+import sys
+import os
+#
+# GLOBAL CONSTANTS
+#
+work_dir = "C:\\Users\\.....\\Downloads" 
+params_file_ref = "C:\\Users\\.....\\Downloads\\TemporaryZoomParams.txt"
+outfile_ref = "C:\\Users\\.....\\Downloads\\TemporaryZoomUsers.txt"
+query_url = "https://api.zoom.us/v2/users"
+statuses = ["active", "inactive", "pending"]
+outfile_header = "status,last_name,first_name,email,type,verified"
+outfile_header += ",last_login,last_client,UserID\n"
+#
+# FUNCTION DEFINITIONS
+#
+def format_line(one_user):
+        user_type = "Unknown"
+        user_type_code = one_user["type"]
+        if user_type_code ==1:
+            user_type = "Basic"
+        elif user_type_code == 2:
+            user_type = "Licensed"
+        elif user_type_code == 3:
+            user_type = "On-Prem."
+        verified = "Unverified"
+        if one_user["verified"] == 1:
+            verified = "Verified"
+        if "last_name" in one_user:
+            last_name = one_user["last_name"].encode("ascii","ignore").decode()
+            last_name = last_name.replace(",","")
+        else:
+            last_name = ""
+        if "first_name" in one_user:
+            first_name = one_user["first_name"].encode("ascii","ignore").decode()
+            first_name = first_name.replace(",","")
+        else:
+            first_name = ""
+        outline = ""
+        outline += one_user["status"]
+        outline += "," + last_name
+        outline += "," + first_name 
+        outline += "," + one_user["email"]
+        outline += "," + user_type
+        outline += "," + verified
+        if "last_login_time" in one_user:
+            outline += "," + one_user["last_login_time"]
+        else:
+            outline += ","
+        if "last_client_version" in one_user:
+            outline += "," + one_user["last_client_version"]
+        else:
+            outline += ","
+        outline += "," + one_user["id"]
+        outline += "\n"
+        print (one_user["status"], one_user["email"], last_name, first_name)
+        return outline
+#
+# CHECK FILES AND SET UP PARAMETERS
+#
+if not os.path.exists(work_dir):
+    print ("Program ending because working directory does not exist.")
+    sys.exit()
+if not os.path.isfile(params_file_ref):
+    print ("Program ending because input parameters files does not exist.")
+    sys.exit()
+if os.path.exists(outfile_ref):
+    os.remove(outfile_ref)
+else:
+    print ("A new output file will be created to hold the recording details.")
+params_jwt = ""
+params_file = open(params_file_ref, "r")
+line_count = 0
+for params_line in params_file:
+    line_count +=1
+    if line_count == 1:
+        params_jwt = params_line.strip()
+params_file.close()
+token_bearer = "Bearer " + params_jwt
+query_headers = {}
+query_headers["authorization"] = token_bearer
+query_headers["content-type"] = "application/json"
+query_params = {}
+query_params["page_size"] = 50 # limits number of items per response page
+outfile = open(outfile_ref, "w") # Open Output file for writing
+outfile.write(outfile_header)
+#
+# LOOP THROUGH STATUSES AND MULTIPLE RESPONSE PAGES
+#
+for status_name in statuses:
+    query_params["status"] = status_name
+    if "next_page_token" in query_params:
+        del query_params["next_page_token"]
+    next_page_token = "Dummy"
+    while next_page_token:
+        if next_page_token and next_page_token != "Dummy":
+            query_params["next_page_token"] = next_page_token
+        response = requests.get(query_url, headers=query_headers, params=query_params)
+        if (response.status_code) != 200:
+            print (" Program ending due to non-200 web response.", response)
+            sys.exit()
+        resp_dict = response.json()
+        if "code" in resp_dict:
+            print ("Program ending because ",resp_dict["code"])
+            sys.exit()
+        if "next_page_token" in resp_dict:
+            next_page_token = resp_dict["next_page_token"]
+        else:
+            next_page_token = ""
+        for user in resp_dict["users"]:
+            fl = format_line(user)
+            if fl:
+                outfile.write(fl)               
+#
+# END PROGRAM
+#
+outfile.close()
+sys.exit()
